@@ -1,3 +1,6 @@
+""" Used for setup.
+"""
+
 from setuptools import setup
 from setuptools import find_packages
 
@@ -17,5 +20,14 @@ setup(
     ],
     package_dir={'': 'src'},
     packages=find_packages(where="src"),
+    include_package_data=True,
     python_requires=">=3.10",
+    install_requires=[
+        'Click',
+    ],
+    entry_points={
+        'console_scripts': [
+            'adftp = adft_performance.cli:cli',
+        ],
+    },
 )

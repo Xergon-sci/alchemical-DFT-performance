@@ -1,0 +1,175 @@
+""" This module contains functionality to predict with the MJ1 Series of models.
+"""
+
+import re
+from adftPerformance.base import Validator, Preprocessor, Predictor
+from openbabel.openbabel import OBMol, OBConversion, OBBuilder, OBForceField
+from qubit.descriptors import CoulombMatrix
+import numpy as np
+from tensorflow.keras.models import load_model
+
+class MJ1_Validator(Validator):
+    """MJ1_Validator validates both smiles and xyz input for prediction with the MJ1 series of models.
+    """
+
+    def __init__(self, input='smiles'):
+        """__init__
+
+        :param input: input type, can be either 'smiles' or 'xyz', defaults to 'smiles'
+        :type input: str, optional
+        """
+        self.input = input
+
+    def validate(self, molecule):
+        """validate Validates the molecule for use with the MJ1 series of models, can be either smiles or a xyz file.
+
+        :param molecule: The molecule to predict.
+        :type molecule: str
+        :raises ValueError: When the molecule cant load.
+        :raises ValueError: When the molecule doesn't contain the right range of heavy atoms.
+        :raises ValueError: When the molecule containers an atom other then CNOSH.
+        :raises ValueError: When the molecule contains a charge.
+        :return: An OBMOL object, that contains the molecule.
+        :rtype: OBMOL
+        """
+        if self.input == 'smiles':
+            obconversion = OBConversion()
+            obconversion.SetInFormat('smi')
+
+            mol = OBMol()
+            obconversion.ReadString(mol, molecule)
+        elif input == 'xyz':
+            obconversion = OBConversion()
+            obconversion.SetInFormat('xyz')
+
+            mol = OBMol()
+            obconversion.ReadFile(mol, molecule)
+        else:
+            raise ValueError
+        
+        if mol.NumAtoms() <= 0:
+            raise ValueError(f'No atoms found, are {molecule} valid smiles?')
+
+        temp_mol = mol
+        if temp_mol.DeleteHydrogens():
+            heavy_atoms = temp_mol.NumAtoms()
+            if heavy_atoms < 10 or heavy_atoms > 20:
+                raise ValueError(f'Your molecule contains {heavy_atoms} heavy atoms, the predictive range of the MJ1 series is [10;20] heavy atoms.')
+
+            formula = temp_mol.GetSpacedFormula()
+            formula = re.sub(r'[0-9]', '', formula)
+            formula = formula.split()
+
+            cnos = ['C', 'H', 'N', 'O', 'S']
+
+            for s in formula:
+                if s not in cnos:
+                    raise ValueError(f'Your molecule contains {s} this is not allowed! The only accepted atoms are of types CNOSH.')
+            
+            charge = temp_mol.GetTotalCharge()
+            if charge != 0:
+                raise ValueError(f'Your molecule contains a charge ({charge}), this is not supported.')
+        
+        return mol
+
+class MJ1_Preprocessor(Preprocessor):
+    """MJ1_Preprocessor Preprocesses all the date for the MJ1 series of models.
+    """
+
+    def __init__(self):
+        super().__init__()
+    
+    def optimize(self, mol, gradients=100):
+        """optimize the geometry by forcefield optimization. The used forcefield is MMFF94.
+
+        :param mol: The molecule that will be optimized.
+        :type mol: OBMol
+        :param gradients: The amount of gradient updates the forcefield is allowd to calculate, defaults to 100
+        :type gradients: int, optional
+        :raises ValueError: When the forcefield cannot be establised.
+        :return: The FF optimized geometry.
+        :rtype: OBMol
+        """
+        builder = OBBuilder()
+        forcefield = OBForceField.FindForceField('MMFF94')
+
+        mol.AddHydrogens()
+        builder.Build(mol)
+
+        if forcefield.Setup(mol) is False:
+            raise ValueError('Forcefield setup failed, no forcefield available.')
+        else:
+            forcefield.ConjugateGradients(gradients)
+            forcefield.GetCoordinates(mol)
+            return mol
+    
+    def preprocess(self, molecule, optimize=False, gradients=100):
+        """preprocess Preprocess the molecule for the MJ1 series of models.
+
+        :param molecule: The molecule to preprocess.
+        :type molecule: OBMol
+        :param optimize: Optional forcefield optimization, defaults to False
+        :type optimize: bool, optional
+        :param gradients: The ammount of gradient calculations allowed, defaults to 100
+        :type gradients: int, optional
+        :return: A tensor representation of the molecule.
+        :rtype: np.array
+        """
+
+        if optimize:
+            mol = self.optimize(molecule, gradients)
+        else:
+            mol = molecule
+        
+        obconversion = OBConversion()
+        obconversion.SetOutFormat('xyz')
+        xyz = obconversion.WriteString(mol, True)
+        xyz = '\n'.join(xyz.split('\n')[2:])
+        coords = []
+        atoms = []
+        for l in xyz.splitlines():
+            i = l.split()
+            atoms.append(i[0])
+            t = []
+            t.append(i[1])
+            t.append(i[2])
+            t.append(i[3])
+            coords.append(t)
+        
+        coords = np.asarray(coords, dtype=np.float32)
+
+        x = CoulombMatrix.generate(atoms=atoms, xyz=coords)
+        x = CoulombMatrix.pad_matrix(x, size=63)
+        x = CoulombMatrix.normalize(x, negative_dimensions=86, positive_dimensions=14)
+        return np.expand_dims(x, axis=3)
+
+class MJ1_Predictor(Predictor):
+    """MJ1_Predictor Predicts the molecule with the MJ1 series of models.
+    """
+
+    def __init__(self, model, validator, preprocessor):
+        """__init__
+
+        :param models: The path to the model.
+        :type models: str
+        :param validator: The validator.
+        :type validator: adft-performance.base.Validator
+        :param preprocessor: The preprocessor?
+        :type preprocessor: adft-performance.base.Preprocessor
+        """
+        super().__init__(model, validator, preprocessor)
+        self.model = load_model(self.model)
+    
+    def predict(self, molecule):
+        """predict Predicts a value from the selected model for this molecule.
+
+        :param molecule: The molecule can be a smiles string or a xyz file.
+        :type molecule: str
+        :return: predictied value
+        :rtype: float
+        """
+
+        molecule = self.validator.validate(molecule)
+        tensor = self.preprocessor.preprocess(molecule)
+
+        return self.model.predict(tensor)
