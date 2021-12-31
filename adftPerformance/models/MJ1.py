@@ -76,10 +76,12 @@ class MJ1_Preprocessor(Preprocessor):
     """MJ1_Preprocessor Preprocesses all the date for the MJ1 series of models.
     """
 
-    def __init__(self):
+    def __init__(self, optimize=False, gradients=100):
         super().__init__()
+        self.optim = optimize
+        self.gradients=gradients
     
-    def optimize(self, mol, gradients=100):
+    def optimize(self, mol):
         """optimize the geometry by forcefield optimization. The used forcefield is MMFF94.
 
         :param mol: The molecule that will be optimized.
@@ -99,11 +101,11 @@ class MJ1_Preprocessor(Preprocessor):
         if forcefield.Setup(mol) is False:
             raise ValueError('Forcefield setup failed, no forcefield available.')
         else:
-            forcefield.ConjugateGradients(gradients)
+            forcefield.ConjugateGradients(self.gradients)
             forcefield.GetCoordinates(mol)
             return mol
     
-    def preprocess(self, molecule, optimize=False, gradients=100):
+    def preprocess(self, molecule):
         """preprocess Preprocess the molecule for the MJ1 series of models.
 
         :param molecule: The molecule to preprocess.
@@ -116,8 +118,8 @@ class MJ1_Preprocessor(Preprocessor):
         :rtype: np.array
         """
 
-        if optimize:
-            mol = self.optimize(molecule, gradients)
+        if self.optim:
+            mol = self.optimize(molecule)
         else:
             mol = molecule
         
@@ -147,7 +149,7 @@ class MJ1_Predictor(Predictor):
     """MJ1_Predictor Predicts the molecule with the MJ1 series of models.
     """
 
-    def __init__(self, model, validator, preprocessor):
+    def __init__(self, model_path, validator, preprocessor):
         """__init__
 
         :param models: The path to the model.
@@ -157,8 +159,8 @@ class MJ1_Predictor(Predictor):
         :param preprocessor: The preprocessor?
         :type preprocessor: adft-performance.base.Preprocessor
         """
-        super().__init__(model, validator, preprocessor)
-        self.model = load_model(self.model)
+        super().__init__(model_path, validator, preprocessor)
+        self.model = load_model(self.model_path, compile=False)
     
     def predict(self, molecule):
         """predict Predicts a value from the selected model for this molecule.
@@ -171,5 +173,6 @@ class MJ1_Predictor(Predictor):
 
         molecule = self.validator.validate(molecule)
         tensor = self.preprocessor.preprocess(molecule)
+        tensor = np.expand_dims(tensor, axis=0)
 
-        return self.model.predict(tensor)
+        return self.model.predict(tensor)[0][0]

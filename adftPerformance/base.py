@@ -36,8 +36,8 @@ class Predictor(ABC):
     """
 
     @abstractmethod
-    def __init__(self, model, validator, preprocessor):
-        self.model_path = model
+    def __init__(self, model_path, validator, preprocessor):
+        self.model_path = model_path
         self.validator = validator
         self.preprocessor = preprocessor
 
