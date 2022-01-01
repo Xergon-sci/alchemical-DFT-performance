@@ -60,15 +60,15 @@ class MJ1_Validator(Validator):
             formula = re.sub(r'[0-9]', '', formula)
             formula = formula.split()
 
-            cnos = ['C', 'H', 'N', 'O', 'S']
+            cnos = ['C', 'H', 'N', 'O', 'S', '+', '-']
 
             for s in formula:
                 if s not in cnos:
                     raise ValueError(f'Your molecule contains {s} this is not allowed! The only accepted atoms are of types CNOSH.')
             
-            charge = temp_mol.GetTotalCharge()
-            if charge != 0:
-                raise ValueError(f'Your molecule contains a charge ({charge}), this is not supported.')
+            #charge = temp_mol.GetTotalCharge()
+            #if charge != 0:
+            #    raise ValueError(f'Your molecule contains a charge ({charge}), this is not supported.')
         
         return mol
 
