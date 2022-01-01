@@ -1,13 +1,12 @@
 import os
 from tqdm import tqdm
 import numpy as np
-import tensorflow as tf
-from adftPerformance.models.MJ1 import MJ1_Validator, MJ1_Preprocessor, MJ1_Predictor
+import tensorflow as tfB
 
 def confPredictor(path):
 
     val = MJ1_Validator(input='smiles')
-    prep = MJ1_Preprocessor(optimize=True)
+    prep = MJ1_Preprocessor(optimize=True, gradients=50)
 
     pred = MJ1_Predictor(
         model_path=path,
@@ -43,17 +42,17 @@ def add(path, predictor, param):
 
 if __name__ == '__main__':
 
-    #lumo = confPredictor('/home/michiel/projects/alchemical-DFT-performance/tests/models/lumo/lumo')
-    #start(lumo, 'LUMO')
-    #del lumo
+    lumo = confPredictor('/home/michiel/projects/alchemical-DFT-performance/tests/models/lumo/lumo')
+    start(lumo, 'LUMO')
+    del lumo
 
-    #chem_pot = confPredictor('/home/michiel/projects/alchemical-DFT-performance/tests/models/chem_pot/chem_pot')
-    #add('/home/michiel/projects/alchemical-DFT-performance/predictions.csv', chem_pot, 'chemical_potential')
-    #del chem_pot
+    chem_pot = confPredictor('/home/michiel/projects/alchemical-DFT-performance/tests/models/chem_pot/chem_pot')
+    add('/home/michiel/projects/alchemical-DFT-performance/predictions.csv', chem_pot, 'chemical_potential')
+    del chem_pot
 
-    #electro = confPredictor('/home/michiel/projects/alchemical-DFT-performance/tests/models/electro/electro')
-    #add('/home/michiel/projects/alchemical-DFT-performance/predictions.csv', electro, 'electrophilicity_index')
-    #del electro
+    electro = confPredictor('/home/michiel/projects/alchemical-DFT-performance/tests/models/electro/electro')
+    add('/home/michiel/projects/alchemical-DFT-performance/predictions.csv', electro, 'electrophilicity_index')
+    del electro
 
     chem_hard = confPredictor('/home/michiel/projects/alchemical-DFT-performance/tests/models/chem_hard/chem_hard')
     add('/home/michiel/projects/alchemical-DFT-performance/predictions.csv', chem_hard, 'chemical_hardness')
