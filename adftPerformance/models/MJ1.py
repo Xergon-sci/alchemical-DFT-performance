@@ -38,12 +38,12 @@ class MJ1_Validator(Validator):
 
             mol = OBMol()
             obconversion.ReadString(mol, molecule)
-        elif input == 'xyz':
+        elif self.input == 'xyz':
             obconversion = OBConversion()
             obconversion.SetInFormat('xyz')
 
             mol = OBMol()
-            obconversion.ReadFile(mol, molecule)
+            obconversion.ReadString(mol, molecule)
         else:
             raise ValueError
         
