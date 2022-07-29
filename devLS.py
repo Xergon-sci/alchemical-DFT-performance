@@ -19,26 +19,25 @@ def loaddata(path):
 
 def confPredictor(path):
 
-    val = MJ1_Validator(input='xyz')
-    prep = MJ1_Preprocessor(optimize=False, gradients=1600)
+    val = MJ1_Validator(input='smiles')
+    prep = MJ1_Preprocessor(optimize=True, gradients=1600)
     pred = MJ1_Predictor(
-
         model_path=path,
         validator=val,
         preprocessor=prep)
     return pred
 
 def start(predictor, param):
-    with open('/home/michiel/projects/CNOS_Dataset/datasets/OOS_RAW/OOS_RAW_tot.csv', 'r') as f:
+    with open('/home/michiel/alchemical-DFT-performance/dienes.csv', 'r') as f:
         f.readline()
         content = [line.rstrip() for line in f]
         
         with open('predictions.csv', 'w') as p:
-            p.write(f'CID,smiles,prediction_{ param }\n')
+            p.write(f'cid,smiles,{ param }\n')
 
             for l in tqdm(content):
                 l = l.split(sep=',')
-                p.write(f'{ l[1][:-2] },{ l[2] },{ predictor.predict(l[2]) },\n')
+                p.write(f'{l[0]},{l[1]},{ predictor.predict(l[1]) },\n')
 
 
 def add(path, predictor, param):
@@ -48,7 +47,7 @@ def add(path, predictor, param):
 
         f.seek(0)
 
-        f.write(f'{ header.rstrip() },predicions_{ param }\n')
+        f.write(f'{ header.rstrip() },{ param }\n')
 
         for l in tqdm(content):
             s = l.split(sep=',')
@@ -99,28 +98,24 @@ def predict_xyz_add(path, predictor, param):
                 
 if __name__ == '__main__':
 
-    #lumo = confPredictor('/home/michiel/projects/alchemical-DFT-performance/tests/models/lumo/lumo')
-    #start(lumo, 'LUMO')
-    #predict_xyz_start(lumo, 'lumo')
-    #del lumo
+    lumo = confPredictor('/home/michiel/alchemical-DFT-performance/model_files/lumo')
+    start(lumo, 'predicted_lumo_ev')
+    del lumo
 
+    homo = confPredictor('/home/michiel/alchemical-DFT-performance/model_files/homo')
+    add('/home/michiel/alchemical-DFT-performance/predictions.csv', homo, 'predicted_homo_ev')
+    del homo
+
+    electro = confPredictor('/home/michiel/alchemical-DFT-performance/model_files/electro')
+    add('/home/michiel/alchemical-DFT-performance/predictions.csv', electro, 'predicted_electrophilicity_index_ev')
+    del electro
 
     #chem_pot = confPredictor('/home/michiel/projects/alchemical-DFT-performance/tests/models/chem_pot/chem_pot')
     #add('/home/michiel/projects/alchemical-DFT-performance/predictions.csv', chem_pot, 'chemical_potential')
     #predict_xyz_add('/home/michiel/projects/alchemical-DFT-performance/predictions.csv', chem_pot, 'chemical_potential')
     #del chem_pot
 
-    #electro = confPredictor('/home/michiel/projects/alchemical-DFT-performance/tests/models/electro/electro')
-    #add('/home/michiel/projects/alchemical-DFT-performance/predictions.csv', electro, 'electrophilicity_index')
-    #predict_xyz_add('/home/michiel/projects/alchemical-DFT-performance/predictions.csv', electro, 'electrophilicity_index')
-    #del electro
-
-    #chem_hard = confPredictor('/home/michiel/projects/alchemical-DFT-performance/tests/models/chem_hard/chem_hard')
+        #chem_hard = confPredictor('/home/michiel/projects/alchemical-DFT-performance/tests/models/chem_hard/chem_hard')
     #add('/home/michiel/projects/alchemical-DFT-performance/predictions.csv', chem_hard, 'chemical_hardness')
     #predict_xyz_add('/home/michiel/projects/alchemical-DFT-performance/predictions.csv', chem_hard, 'chemical_hardness')
     #del chem_hard
-
-    homo = confPredictor('/home/michiel/projects/alchemical-DFT-performance/tests/models/homo/homo')
-    #add('/home/michiel/projects/alchemical-DFT-performance/predictions_1600.csv', homo, 'homo')
-    predict_xyz_add('/home/michiel/projects/alchemical-DFT-performance/predictions.csv', homo, 'homo')
-    del homo

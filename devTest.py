@@ -8,12 +8,12 @@ def main():
     prep = MJ1_Preprocessor(optimize=True)
 
     pred = MJ1_Predictor(
-        model_path='/home/michiel/projects/alchemical-DFT-performance/tests/models/chem_pot/chem_pot',
+        model_path='/home/michiel/alchemical-DFT-performance/model_files/electro',
         validator=val,
         preprocessor=prep)
     
-    prediction = pred.predict('CN1C=NC2=C1C(=O)N(C(=O)N2C)C')
-    print('PREDICTION: ', prediction, ' eV')
+    prediction = pred.predict(['C(=CC=O)C=C(C(=O)O)N', 'CC1=CC(=NC1)OC2CC2'])
+    print('PREDICTIONS: ', prediction, ' eV')
 
 if __name__ == '__main__':
     main()
