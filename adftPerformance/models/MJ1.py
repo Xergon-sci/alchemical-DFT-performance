@@ -1,12 +1,15 @@
 """ This module contains functionality to predict with the MJ1 Series of models.
 """
 
+from logging import WARNING
 import re
+import warnings
 from adftPerformance.base import Validator, Preprocessor, Predictor
 from openbabel.openbabel import OBMol, OBConversion, OBBuilder, OBForceField
 from qubit.descriptors import CoulombMatrix
 import numpy as np
 from tensorflow.keras.models import load_model
+import tensorflow as tf
 
 class MJ1_Validator(Validator):
     """MJ1_Validator validates both smiles and xyz input for prediction with the MJ1 series of models.
@@ -48,13 +51,15 @@ class MJ1_Validator(Validator):
             raise ValueError
         
         if mol.NumAtoms() <= 0:
-            raise ValueError(f'No atoms found, are {molecule} valid smiles?')
+            warnings.warn(f'No atoms found, are {molecule} valid smiles?')
+            return None
 
         temp_mol = mol
         if temp_mol.DeleteHydrogens():
             heavy_atoms = temp_mol.NumAtoms()
-            if heavy_atoms < 10 or heavy_atoms > 20:
-                raise ValueError(f'Your molecule contains {heavy_atoms} heavy atoms, the predictive range of the MJ1 series is [10;20] heavy atoms.')
+            if heavy_atoms is not 10:
+                warnings.warn(f'Your molecule contains {heavy_atoms} heavy atoms, the predictive range of the MJ1 series is [10] heavy atoms.')
+                return None
 
             formula = temp_mol.GetSpacedFormula()
             formula = re.sub(r'[0-9]', '', formula)
@@ -64,7 +69,8 @@ class MJ1_Validator(Validator):
 
             for s in formula:
                 if s not in cnos:
-                    raise ValueError(f'Your molecule contains {s} this is not allowed! The only accepted atoms are of types CNOSH.')
+                    warnings.warn(f'Your molecule contains {s} this is not allowed! The only accepted atoms are of types CNOSH.')
+                    return None
             
             #charge = temp_mol.GetTotalCharge()
             #if charge != 0:
@@ -99,7 +105,8 @@ class MJ1_Preprocessor(Preprocessor):
         builder.Build(mol)
 
         if forcefield.Setup(mol) is False:
-            raise ValueError('Forcefield setup failed, no forcefield available.')
+            warnings.warn('Forcefield setup failed, no forcefield available.')
+            return None
         else:
             forcefield.ConjugateGradients(self.gradients)
             forcefield.GetCoordinates(mol)
@@ -141,7 +148,7 @@ class MJ1_Preprocessor(Preprocessor):
         coords = np.asarray(coords, dtype=np.float32)
 
         x = CoulombMatrix.generate(atoms=atoms, xyz=coords)
-        x = CoulombMatrix.pad_matrix(x, size=63)
+        x = CoulombMatrix.pad_matrix(x, size=33)
         x = CoulombMatrix.normalize(x, negative_dimensions=86, positive_dimensions=14)
         return np.expand_dims(x, axis=3)
 
@@ -171,8 +178,42 @@ class MJ1_Predictor(Predictor):
         :rtype: float
         """
 
-        molecule = self.validator.validate(molecule)
-        tensor = self.preprocessor.preprocess(molecule)
-        tensor = np.expand_dims(tensor, axis=0)
+        def generator():
+            i = 0
+            while i < len(molecule):
+                # select the data from a np matrix
+                x = molecule[i]
 
-        return self.model.predict(tensor)[0][0]
+                x = self.validator.validate(x)
+                if x is None:
+                    return None
+                tensor = self.preprocessor.preprocess(x)
+                if tensor is None:
+                    return None
+
+                yield tensor
+                i += 1
+
+        if type(molecule) is list:
+            dataset = tf.data.Dataset.from_generator(
+                    generator=generator,
+                    output_signature=(
+                        tf.TensorSpec(shape=(101,33,33,1), dtype=tf.float32)
+                    )
+                )
+
+            dataset = dataset.batch(32)
+
+            predictions = self.model.predict(dataset)
+
+            return np.squeeze(predictions)
+        else:
+            molecule = self.validator.validate(molecule)
+            if molecule is None:
+                return None
+            tensor = self.preprocessor.preprocess(molecule)
+            if tensor is None:
+                return None
+            tensor = np.expand_dims(tensor, axis=0)
+
+            return self.model.predict(tensor)[0][0]
