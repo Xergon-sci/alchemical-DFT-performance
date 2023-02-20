@@ -50,27 +50,27 @@ class MJ1_Validator(Validator):
         else:
             raise ValueError
         
-        if mol.NumAtoms() <= 0:
-            warnings.warn(f'No atoms found, are {molecule} valid smiles?')
-            return None
+        #if mol.NumAtoms() <= 0:
+        #    warnings.warn(f'No atoms found, are {molecule} valid smiles?')
+        #    return None
 
-        temp_mol = mol
-        if temp_mol.DeleteHydrogens():
-            heavy_atoms = temp_mol.NumAtoms()
-            if heavy_atoms is not 10:
-                warnings.warn(f'Your molecule contains {heavy_atoms} heavy atoms, the predictive range of the MJ1 series is [10] heavy atoms.')
-                return None
+        #temp_mol = mol
+        #if temp_mol.DeleteHydrogens():
+        #    heavy_atoms = temp_mol.NumAtoms()
+        #    if heavy_atoms is not 10:
+        #        warnings.warn(f'Your molecule contains {heavy_atoms} heavy atoms, the predictive range of the MJ1 series is [10] heavy atoms.')
+        #        return None
 
-            formula = temp_mol.GetSpacedFormula()
-            formula = re.sub(r'[0-9]', '', formula)
-            formula = formula.split()
+        #    formula = temp_mol.GetSpacedFormula()
+        #    formula = re.sub(r'[0-9]', '', formula)
+        #    formula = formula.split()
 
-            cnos = ['C', 'H', 'N', 'O', 'S', '+', '-']
+        #    cnos = ['C', 'H', 'N', 'O', 'S']
 
-            for s in formula:
-                if s not in cnos:
-                    warnings.warn(f'Your molecule contains {s} this is not allowed! The only accepted atoms are of types CNOSH.')
-                    return None
+        #    for s in formula:
+        #        if s not in cnos:
+        #            warnings.warn(f'Your molecule contains {s} this is not allowed! The only accepted atoms are of types CNOSH.')
+        #            return None
             
             #charge = temp_mol.GetTotalCharge()
             #if charge != 0:
@@ -180,6 +180,7 @@ class MJ1_Predictor(Predictor):
 
         def generator():
             i = 0
+            print(f'{len(molecule)} molecules found.')
             while i < len(molecule):
                 # select the data from a np matrix
                 x = molecule[i]
@@ -190,7 +191,8 @@ class MJ1_Predictor(Predictor):
                 tensor = self.preprocessor.preprocess(x)
                 if tensor is None:
                     return None
-
+                
+                #print(i)
                 yield tensor
                 i += 1
 
@@ -206,7 +208,7 @@ class MJ1_Predictor(Predictor):
 
             predictions = self.model.predict(dataset)
 
-            return np.squeeze(predictions)
+            return predictions
         else:
             molecule = self.validator.validate(molecule)
             if molecule is None:
