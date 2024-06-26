@@ -8,7 +8,7 @@ from adftPerformance.base import Validator, Preprocessor, Predictor
 from openbabel.openbabel import OBMol, OBConversion, OBBuilder, OBForceField
 from qubit.descriptors import CoulombMatrix
 import numpy as np
-from tensorflow.keras.models import load_model
+from tensorflow import keras
 import tensorflow as tf
 
 class MJ1_Validator(Validator):
@@ -167,7 +167,10 @@ class MJ1_Predictor(Predictor):
         :type preprocessor: adft-performance.base.Preprocessor
         """
         super().__init__(model_path, validator, preprocessor)
-        self.model = load_model(self.model_path, compile=False)
+
+        self.model = keras.Sequential([
+            keras.layers.TFSMLayer(model_path, call_endpoint='serving_default'),
+        ])
     
     def predict(self, molecule):
         """predict Predicts a value from the selected model for this molecule.
@@ -218,4 +221,4 @@ class MJ1_Predictor(Predictor):
                 return None
             tensor = np.expand_dims(tensor, axis=0)
 
-            return self.model.predict(tensor)[0][0]
+            return self.model.predict(tensor)
