@@ -87,6 +87,9 @@ class MJ1_Preprocessor(Preprocessor):
         """
         mol = Chem.AddHs(mol)
 
+        # try to remove al steric information present
+        AllChem.AssignAtomChiralTagsFromStructure(mol,confId=-1,replaceExistingTags=True)
+
         AllChem.EmbedMolecule(mol, maxAttempts=self.cycles)
 
         status = AllChem.MMFFOptimizeMolecule(mol, maxIters=self.cycles)
