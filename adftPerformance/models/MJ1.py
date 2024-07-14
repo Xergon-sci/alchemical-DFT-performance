@@ -87,8 +87,7 @@ class MJ1_Preprocessor(Preprocessor):
         """
         mol = Chem.AddHs(mol)
 
-        params = AllChem.ETKDGv3()
-        AllChem.EmbedMolecule(mol, params, maxAttempts=self.cycles)
+        AllChem.EmbedMolecule(mol, maxAttempts=self.cycles)
 
         status = AllChem.MMFFOptimizeMolecule(mol, maxIters=self.cycles)
         if status == -1:
