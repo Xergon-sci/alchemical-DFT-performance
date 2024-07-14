@@ -117,8 +117,7 @@ class MJ1_Preprocessor(Preprocessor):
             mol = molecule
         
         xyz = Chem.MolToXYZBlock(mol)
-
-        print('xyz: ', xyz)
+        
         xyz = '\n'.join(xyz.split('\n')[2:])
         coords = []
         atoms = []
@@ -134,7 +133,6 @@ class MJ1_Preprocessor(Preprocessor):
         coords = np.asarray(coords, dtype=np.float32)
 
         x = CoulombMatrix.generate(atoms=atoms, xyz=coords)
-        print('Coulombmatrix: ', x)
         x = CoulombMatrix.pad_matrix(x, size=33)
         x = CoulombMatrix.normalize(x, negative_dimensions=86, positive_dimensions=14)
         return np.expand_dims(x, axis=3)
