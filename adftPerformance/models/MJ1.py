@@ -5,7 +5,8 @@ from logging import WARNING
 import re
 import warnings
 from adftPerformance.base import Validator, Preprocessor, Predictor
-from openbabel.openbabel import OBMol, OBConversion, OBBuilder, OBForceField
+from rdkit import Chem
+from rdkit.Chem import AllChem
 from qubit.descriptors import CoulombMatrix
 import numpy as np
 from tensorflow import keras
@@ -36,17 +37,11 @@ class MJ1_Validator(Validator):
         :rtype: OBMOL
         """
         if self.input == 'smiles':
-            obconversion = OBConversion()
-            obconversion.SetInFormat('smi')
+            mol = Chem.MolFromSmiles(molecule)
 
-            mol = OBMol()
-            obconversion.ReadString(mol, molecule)
         elif self.input == 'xyz':
-            obconversion = OBConversion()
-            obconversion.SetInFormat('xyz')
+            mol = Chem.MolFromXYZFile(molecule)
 
-            mol = OBMol()
-            obconversion.ReadString(mol, molecule)
         else:
             raise ValueError
         
@@ -82,35 +77,26 @@ class MJ1_Preprocessor(Preprocessor):
     """MJ1_Preprocessor Preprocesses all the date for the MJ1 series of models.
     """
 
-    def __init__(self, optimize=False, gradients=100):
+    def __init__(self, optimize=False, cycles=500):
         super().__init__()
         self.optim = optimize
-        self.gradients=gradients
+        self.cycles = cycles
     
     def optimize(self, mol):
         """optimize the geometry by forcefield optimization. The used forcefield is MMFF94.
-
-        :param mol: The molecule that will be optimized.
-        :type mol: OBMol
-        :param gradients: The amount of gradient updates the forcefield is allowd to calculate, defaults to 100
-        :type gradients: int, optional
-        :raises ValueError: When the forcefield cannot be establised.
-        :return: The FF optimized geometry.
-        :rtype: OBMol
         """
-        builder = OBBuilder()
-        forcefield = OBForceField.FindForceField('MMFF94')
+        mol = Chem.AddHs(mol)
 
-        mol.AddHydrogens()
-        builder.Build(mol)
+        params = AllChem.ETKDGv3()
+        AllChem.EmbedMolecule(mol, params)
 
-        if forcefield.Setup(mol) is False:
-            warnings.warn('Forcefield setup failed, no forcefield available.')
-            return None
-        else:
-            forcefield.ConjugateGradients(self.gradients)
-            forcefield.GetCoordinates(mol)
-            return mol
+        status = AllChem.MMFFOptimizeMolecule(mol, maxIters=self.cycles)
+        if status == -1:
+            print(f'An issue orrured with molecule {Chem.MolToSmiles(mol)} : A forcefield could not be established.')
+        elif status == 1:
+            print(f'An issue orrured with molecule {Chem.MolToSmiles(mol)} : Did not converge, more cycles are needed to optimize this.')
+
+        return mol
     
     def preprocess(self, molecule):
         """preprocess Preprocess the molecule for the MJ1 series of models.
@@ -130,9 +116,8 @@ class MJ1_Preprocessor(Preprocessor):
         else:
             mol = molecule
         
-        obconversion = OBConversion()
-        obconversion.SetOutFormat('xyz')
-        xyz = obconversion.WriteString(mol, True)
+        xyz = Chem.MolToXYZBlock(mol)
+
         print('xyz: ', xyz)
         xyz = '\n'.join(xyz.split('\n')[2:])
         coords = []
