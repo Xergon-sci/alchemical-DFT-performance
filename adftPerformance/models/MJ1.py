@@ -188,7 +188,7 @@ class MJ1_Predictor(Predictor):
                 tensor = self.preprocessor.preprocess(x)
                 if tensor is None:
                     return None
-                elif tensor == -1:
+                elif tensor is -1:
                     return -1
                 
                 #print(i)
