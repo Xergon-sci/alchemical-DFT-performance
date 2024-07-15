@@ -90,7 +90,12 @@ class MJ1_Preprocessor(Preprocessor):
         # try to remove al steric information present
         AllChem.AssignAtomChiralTagsFromStructure(mol,confId=-1,replaceExistingTags=True)
 
-        AllChem.EmbedMolecule(mol, maxAttempts=self.cycles)
+        if AllChem.EmbedMolecule(mol, maxAttempts=self.cycles) == -1:
+            if AllChem.EmbedMolecule(mol, useRandomCoords=True, maxAttempts=self.cycles) == -1:
+                AllChem.AssignAtomChiralTagsFromStructure(mol,confId=-1,replaceExistingTags=True)
+                if AllChem.EmbedMolecule(mol, useRandomCoords=True, maxAttempts=self.cycles) == -1:
+                    print('Embedding failed')
+                    return -1
 
         status = AllChem.MMFFOptimizeMolecule(mol, maxIters=self.cycles)
         if status == -1:
@@ -115,6 +120,8 @@ class MJ1_Preprocessor(Preprocessor):
 
         if self.optim:
             mol = self.optimize(molecule)
+            if mol == -1:
+                return -1
         else:
             mol = molecule
         
@@ -181,6 +188,8 @@ class MJ1_Predictor(Predictor):
                 tensor = self.preprocessor.preprocess(x)
                 if tensor is None:
                     return None
+                elif tensor == -1:
+                    return -1
                 
                 #print(i)
                 yield tensor
