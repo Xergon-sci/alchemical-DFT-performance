@@ -11,6 +11,7 @@ from qubit.descriptors import CoulombMatrix
 import numpy as np
 from tensorflow import keras
 import tensorflow as tf
+from pandas.core.common import flatten
 
 class MJ1_Validator(Validator):
     """MJ1_Validator validates both smiles and xyz input for prediction with the MJ1 series of models.
@@ -188,8 +189,6 @@ class MJ1_Predictor(Predictor):
                 tensor = self.preprocessor.preprocess(x)
                 if tensor is None:
                     return None
-                elif tensor is -1:
-                    tensor = np.zeros((101,33,33,1))
                 
                 #print(i)
                 yield tensor
@@ -211,10 +210,14 @@ class MJ1_Predictor(Predictor):
         else:
             molecule = self.validator.validate(molecule)
             if molecule is None:
-                return None
+                return -9998
             tensor = self.preprocessor.preprocess(molecule)
             if tensor is None:
-                return None
+                return -9998
+            elif tensor is -1:
+                return -9999
+            
             tensor = np.expand_dims(tensor, axis=0)
+            prediction = self.model.predict(tensor)
 
-            return self.model.predict(tensor)
+            return list(flatten(prediction['dense_2']))[0]
