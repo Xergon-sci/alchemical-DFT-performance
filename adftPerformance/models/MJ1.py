@@ -189,7 +189,7 @@ class MJ1_Predictor(Predictor):
                 if tensor is None:
                     return None
                 elif tensor is -1:
-                    return -1
+                    tensor = np.zeros((101,33,33,1))
                 
                 #print(i)
                 yield tensor
