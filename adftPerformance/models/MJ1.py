@@ -211,7 +211,7 @@ class MJ1_Predictor(Predictor):
 
             predictions = self.model.predict(dataset)
 
-            return predictions
+            return predictions / 2
         else:
             molecule = self.validator.validate(molecule)
             if molecule is None:
@@ -221,4 +221,4 @@ class MJ1_Predictor(Predictor):
                 return None
             tensor = np.expand_dims(tensor, axis=0)
 
-            return self.model.predict(tensor)
+            return self.model.predict(tensor) /2
